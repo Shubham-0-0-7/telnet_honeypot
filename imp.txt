@@ -7,7 +7,9 @@ A Honeypot is a network-attached system used as a trap for cyber-attackers to de
 source : https://www.geeksforgeeks.org/blogs/what-is-honeypot/
 
 now what is a telnet honeypot?
-
+A Telnet Honeypot is a decoy system designed to mimic a vulnerable Telnet server. 
+Its primary goal is to lure in attackers (usually automated botnets) and record their activities, 
+such as login attempts, commands used, and malware they try to upload.
 
 well i am just starting with the structure called session which contains important information for the current session 
 like below given is one example of what a session will look like 
