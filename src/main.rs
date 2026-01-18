@@ -1,5 +1,8 @@
-use::std::net::SocketAddr;
-use::std::time::SystemTime;
+use std::net::{TcpListener, TcpStream};
+use std::thread;
+use std::io::{Read, Write};
+use std::net::SocketAddr;
+use std::time::SystemTime;
 
 #[derive(Debug)]
 enum SessionState{
@@ -11,6 +14,7 @@ enum SessionState{
     SessionEnd,
 }
 
+#[derive(Debug)]
 struct Session{
     id:u32,
     client_addr:SocketAddr,
@@ -19,24 +23,71 @@ struct Session{
     username:Option<String>,
     password:Option<String>,
 
-    command_his:Vec<String>,
+    cmd_his:Vec<String>,
     start_time:SystemTime,
 }
-fn main() {
-    let dummy_addr:SocketAddr = "127.0.0.1:1337".parse().unwrap();
-    let s = Session{
-        id:1,
-        client_addr: dummy_addr,
-        state:SessionState::NewConnection,
-        input_buff: String::new(),
-        username:None,
-        password:None,
-        command_his: Vec::new(),
-        start_time: SystemTime::now(),
+
+fn handle_client(mut stream: TcpStream, session_id: u32){
+    let peer_addr = match stream.peer_addr() {
+        Ok(addr) => addr,
+        Err(_) => return,
     };
 
-    println!("Session {} started from {}", s.id, s.client_addr);
-    println!("Current State: {:?}", s.state);
+    let mut session = Session{
+        id:session_id,
+        client_addr:peer_addr,
+        state:SessionState::NewConnection,
+        input_buff:String::new(),
+        username:None,
+        password:None,
+        cmd_his:Vec::new(),
+        start_time:SystemTime::now(),
+    };
+    println!("[+] new attacker connected: session #{} from {}", session.id, session.client_addr);
+    let banner = b"Welcome to Ubuntu 18.04 LTS\r\n";
+    if let Err(e) = stream.write_all(banner){
+        println!("failed to send banner: {}", e);
+        return;
+    }
+    let mut buffer = [0; 512];
+    loop{
+        match stream.read(&mut buffer){
+            Ok(0) => {
+                println!("client disconnected.");
+                break;
+            }
+            
+            Ok(n) => {
+                let recieved_text = String::from_utf8_lossy(&buffer[..n]);
+                print!("recieved {} bytes: {}", n, recieved_text);
+                use std::io::stdout;
+                let _ = stdout().flush();
+            }
+            Err(e) => {
+                println!("error reading stream: {}", e);
+                break;
+            }
+        }
+    }
+}
+fn main() {
+    let listener = TcpListener::bind("0.0.0.0:2323").unwrap();
+    println!("listening on port 2323");
+    let mut global_id_counter = 0;
+
+    for stream in listener.incoming(){
+        match stream{
+            Ok(stream) => {
+                global_id_counter += 1;
+                let session_id = global_id_counter;
+                thread::spawn(move || {handle_client(stream, session_id);});
+            }
+            Err(e) => { 
+                println!("connection failed: {}", e);
+            }
+        }
+    }
+    
     // let id = 7;
     // let ca = ClientAddr{
     //     ip:String::from("127.0.0.1"),

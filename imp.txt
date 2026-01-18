@@ -28,3 +28,6 @@ like below given is one example of what a session will look like
   "bytes_out": 487
 }
 
+
+{} (Display): for user-facing output... u have to write the code manually to define how it looks 
+{:?} (Debug): for developer output ... rust can write this for you automatically if you add #[derive(Debug)]
