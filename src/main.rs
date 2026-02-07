@@ -44,11 +44,14 @@ fn handle_client(mut stream: TcpStream, session_id: u32){
         start_time:SystemTime::now(),
     };
     println!("[+] new attacker connected: session #{} from {}", session.id, session.client_addr);
-    let banner = b"Welcome to Ubuntu 18.04 LTS\r\n";
-    if let Err(e) = stream.write_all(banner){
-        println!("failed to send banner: {}", e);
+    let banner = b"Welcome to Ubuntu 18.04 LTS\r\n\r\n";
+    if let Err(_e) = stream.write_all(banner) {
         return;
     }
+    if let Err(_e) = stream.write_all(b"ubuntu login: ") {
+        return;
+    }
+    session.state = SessionState::WaitUsername;
     let mut buffer = [0; 512];
     loop{
         match stream.read(&mut buffer){
@@ -58,10 +61,41 @@ fn handle_client(mut stream: TcpStream, session_id: u32){
             }
             
             Ok(n) => {
-                let recieved_text = String::from_utf8_lossy(&buffer[..n]);
-                print!("recieved {} bytes: {}", n, recieved_text);
-                use std::io::stdout;
-                let _ = stdout().flush();
+                let received_text = String::from_utf8_lossy(&buffer[..n]).trim().to_string();
+
+                match session.state {
+                    SessionState::NewConnection => {
+                        stream.write_all(b"Username: ").unwrap();
+                        session.state = SessionState::WaitUsername;
+                    }
+                    SessionState::WaitUsername => {
+                        session.username = Some(received_text);
+                        stream.write_all(b"Password: ").unwrap();
+                        session.state = SessionState::WaitPassword;
+                    }
+                    SessionState::WaitPassword => {
+                        session.password = Some(received_text);
+                        println!("[!] captured credentials - session :{} user: {:?}, pass: {:?}", session_id, session.username, session.password);
+                        stream.write_all(b"root@ubuntu:~# ").unwrap();
+                        session.state = SessionState::ShellActive;
+                    }
+                    SessionState::ShellActive => {
+                        session.cmd_his.push(received_text.clone());
+                        println!("[!] Command from {}: {}", session.id, received_text);
+
+                        match received_text.as_str() {
+                            "ls" => stream.write_all(b"bin  etc  home  lib  proc  root  sys  usr  var\n").unwrap(),
+                            "whoami" => stream.write_all(b"root\n").unwrap(),
+                            "exit" => {
+                                stream.write_all(b"logout\n").unwrap();
+                                break;
+                            }
+                            _ => stream.write_all(format!("{}: command not found\n", received_text).as_bytes()).unwrap(),
+                        }
+                        stream.write_all(b"root@ubuntu:~# ").unwrap();
+                    }
+                    _ => {}
+                }
             }
             Err(e) => {
                 println!("error reading stream: {}", e);
